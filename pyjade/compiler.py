@@ -69,7 +69,7 @@ class Compiler(object):
         self.extension = options.get('extension', None) or '.jade'
         self.indents = 0
         self.doctype = None
-        self.terse = False
+        self.terse = options.get('terse', False)
         self.xml = False
         self.mixing = 0
         self.variable_start_string = options.get("variable_start_string", "{{")

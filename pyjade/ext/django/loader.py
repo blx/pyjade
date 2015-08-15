@@ -71,7 +71,7 @@ class Loader(BaseLoader):
             if os.path.splitext(template_name)[1] in ('.jade',):
                 try:
                     source, display_name = self.load_template_source(template_name, template_dirs)
-                    source=process(source,filename=template_name,compiler=Compiler)
+                    source=process(source,filename=template_name,compiler=Compiler,**getattr(settings,'JADE_COMPILER_KWARGS',{}))
                     origin = make_origin(display_name, self.load_template_source, template_name, template_dirs)
                     template = Template(source, origin, template_name)
                 except NotImplementedError:
@@ -80,7 +80,7 @@ class Loader(BaseLoader):
                 template, origin = self.find_template(template_name, template_dirs)
             if not hasattr(template, 'render'):
                 try:
-                    template = Template(process(source,filename=template_name,compiler=Compiler), origin, template_name)
+                    template = Template(process(source,filename=template_name,compiler=Compiler,**getattr(settings,'JADE_COMPILER_KWARGS',{})), origin, template_name)
                 except (TemplateDoesNotExist, UnboundLocalError):
                     # If compiling the template we found raises TemplateDoesNotExist,
                     # back off to returning he source and display name for the template
