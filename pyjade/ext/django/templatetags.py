@@ -108,6 +108,8 @@ class DefineMacroNode(template.Node):
         return ''
  
  
+# https://github.com/syrusakbary/pyjade/compare/master...andrewboltachev:master
+# edits for proper recursive mixins
 @register.tag(name="__pyjade_kwacro")
 def do_macro(parser, token):
     try:
@@ -131,9 +133,51 @@ def do_macro(parser, token):
  
  
 class LoadMacrosNode(template.Node):
+    def __init__(self, file_name_expr, parser):
+        self.file_name_expr = file_name_expr
+        self.loaded = False
+
     def render(self, context):
+        if not self.loaded:
+            if not '_macros' in context:
+                context['_macros'] = {}
+            context['_macros'].update(self.load_macros(context))
+
         ## empty string - {% loadmacros %} tag does no output
         return ''
+
+    def load_macros(self, context, ignore_failures=False):
+        try:
+            file_name = self.file_name_expr.resolve(
+                context,
+                ignore_failures=True
+            )
+        except template.VariableDoesNotExist:
+            file_name = None
+
+        if not file_name:
+            if ignore_failures:
+                return None
+            raise template.TemplateSyntaxError(
+                "Unable to resolve file name: " + str(self.file_name_expr)
+            )
+
+        t = get_template(file_name)
+        # TODO BEN: very strange??
+        t = t.template
+        macros = t.nodelist.get_nodes_by_type(DefineMacroNode)
+
+        load_nodes = t.nodelist.get_nodes_by_type(LoadMacrosNode)
+        others = [x.load_macros(context, ignore_failures) for x in load_nodes]
+
+        own = {x.name: x for x in macros}
+
+        result = {}
+        for item in others:
+            result.update(item)
+        result.update(own)
+
+        return result
  
  
 @register.tag(name="__pyjade_loadkwacros")
@@ -144,17 +188,15 @@ def do_loadmacros(parser, token):
         m = ("'%s' tag requires at least one argument (macro name)"
             % token.contents.split()[0])
         raise template.TemplateSyntaxError(m)
-    if filename[0] in ('"', "'") and filename[-1] == filename[0]:
-        filename = filename[1:-1]
-    t = get_template(filename)
-    macros = t.nodelist.get_nodes_by_type(DefineMacroNode)
-    ## Metadata of each macro are stored in a new attribute
-    ## of 'parser' class. That way we can access it later
-    ## in the template when processing 'usemacro' tags.
-    _setup_macros_dict(parser)
-    for macro in macros:
-        parser._macros[macro.name] = macro
-    return LoadMacrosNode()
+
+    node = LoadMacrosNode(parser.compile_filter(filename), parser)
+    preloaded_macros = node.load_macros({}, ignore_failures=True)
+    if preloaded_macros:
+        parser._macros = getattr(parser, "_macros", {})
+        parser._macros.update(preloaded_macros)
+        node.loaded = True
+
+    return node
  
  
 class UseMacroNode(template.Node):
