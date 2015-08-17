@@ -4,6 +4,7 @@ import contextlib
 
 import pyjade
 from pyjade.runtime import is_mapping, iteration, escape
+import pyjade.exceptions as exceptions
 import six
 import os
 
@@ -84,7 +85,7 @@ class Compiler(pyjade.compiler.Compiler):
         self.visit(block)
 
     def visitExtends(self, node):
-        raise pyjade.exceptions.CurrentlyNotSupported()
+        raise exceptions.CurrentlyNotSupported()
 
     def visitMixin(self, mixin):
         if mixin.block:
