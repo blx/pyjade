@@ -158,8 +158,13 @@ class Compiler(pyjade.compiler.Compiler):
 
 HTMLCompiler = Compiler
 
-def process_jade(src):
+def process_jade(src, context=None, **kwargs):
+    context = context or {}
+    kwargs['pretty'] = kwargs.get('pretty', True)
+
     parser = pyjade.parser.Parser(src)
     block = parser.parse()
-    compiler = Compiler(block, pretty=True)
-    return compiler.compile()
+    compiler = Compiler(block, **kwargs)
+
+    with local_context_manager(compiler, context):
+        return compiler.compile()
